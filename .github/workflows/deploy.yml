@@ -19,7 +19,7 @@ jobs:
       contents: read
       pages: write
     env:
-      BASE_URL: /signal-filters-myst
+      BASE_URL: /jupyter-book-marimo-template
       PYTHONUTF8: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
