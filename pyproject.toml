@@ -1,0 +1,10 @@
+[project]
+name = "signal-filters-myst"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13, <3.14"
+dependencies = [
+    "jupyter-book>=2.1.6",
+    "jupyter-book-marimo>=0.0.3",
+]
