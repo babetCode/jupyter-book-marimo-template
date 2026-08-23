@@ -4,4 +4,4 @@ numbering:
   equations: false
 ---
 
-This a a page made from markdown
+This a page made from markdown
