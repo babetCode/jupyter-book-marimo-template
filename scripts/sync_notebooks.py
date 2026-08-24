@@ -125,7 +125,7 @@ def transform_md_content(md_content: str, source: str = "") -> str:
         in_header_block = False
 
         for line in yaml_text.splitlines():
-            if line.startswith("marimo-version:"):
+            if line.startswith("marimo-version:") or line.startswith("width:"):
                 continue
             if line.startswith("header:"):
                 in_header_block = True

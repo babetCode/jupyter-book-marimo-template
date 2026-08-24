@@ -29,7 +29,7 @@ def _(mo):
 
 
 @app.cell
-def _():
+def foobar():
     my_str = "hello"
     return (my_str,)
 
@@ -50,12 +50,13 @@ def my_function(x):
 
 @app.cell
 def _(np):
+    # jb: echo=true output=false
     np.ones(10)
     return
 
 
 @app.function
-# another reusable function
+# jb: echo=true output=false
 def my_other_function(x):
     return x+x
 

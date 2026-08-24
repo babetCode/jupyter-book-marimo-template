@@ -1,6 +1,5 @@
 ---
 title: Test
-width: medium
 ---
 
 ```{marimo-config}
@@ -35,11 +34,12 @@ def my_function(x):
 ```
 
 ```{marimo} python
+# jb: echo=true output=false
 np.ones(10)
 ```
 
 ```{marimo} python
-# another reusable function
+# jb: echo=true output=false
 def my_other_function(x):
     return x+x
 ```
