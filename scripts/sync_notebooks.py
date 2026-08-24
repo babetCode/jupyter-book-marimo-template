@@ -1,3 +1,14 @@
+"""Sync marimo notebooks (notebooks/*.py) into jupyter-book-marimo MyST markdown
+(content/*.md).
+
+Run via `make sync-notebooks` / `make book-start`, or directly with
+`uv run python scripts/sync_notebooks.py [--serve]`.
+
+Relies on the (undocumented) output format of `marimo export md`, tested against
+marimo's current CLI as of this writing. If the export format changes upstream,
+the regex-based transforms in this file may need updating.
+"""
+
 import argparse
 import pathlib
 import re
@@ -5,24 +16,44 @@ import subprocess
 import sys
 import time
 import tomllib
-from typing import Dict
 
 PROJECT_ROOT = pathlib.Path(__file__).parent.parent
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
 CONTENT_DIR = PROJECT_ROOT / "content"
 
+# Directories under notebooks/ that should never be treated as notebook sources
+# (e.g. marimo's own session/layout state).
+IGNORED_DIRS = {"__marimo__", "__pycache__"}
+
+
+def iter_notebooks():
+    """Yield all notebook .py files under NOTEBOOKS_DIR, skipping ignored dirs."""
+    for py_file in NOTEBOOKS_DIR.rglob("*.py"):
+        parts = py_file.relative_to(NOTEBOOKS_DIR).parts[:-1]
+        if IGNORED_DIRS.isdisjoint(parts):
+            yield py_file
+
 
 def run_marimo_export(notebook_path: pathlib.Path) -> str:
     cmd = ["marimo", "export", "md", str(notebook_path)]
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, encoding="utf-8", check=True
+        )
         return result.stdout
-    except Exception as e:
-        print(f"[marimo-sync] Error exporting {notebook_path.name}: {e}", file=sys.stderr)
+    except subprocess.CalledProcessError as e:
+        print(f"[marimo-sync] Error exporting {notebook_path.name}:", file=sys.stderr)
+        print(e.stderr, file=sys.stderr)
+        return ""
+    except FileNotFoundError:
+        print(
+            "[marimo-sync] 'marimo' command not found — is it installed and on PATH?",
+            file=sys.stderr,
+        )
         return ""
 
 
-def parse_pep723_script_metadata(yaml_text: str) -> dict:
+def parse_pep723_script_metadata(yaml_text: str, source: str = "") -> dict:
     """Extract and parse PEP 723 inline script metadata from indented YAML frontmatter."""
     # Normalize non-breaking spaces and line breaks
     text = yaml_text.replace("\xa0", " ")
@@ -42,8 +73,9 @@ def parse_pep723_script_metadata(yaml_text: str) -> dict:
 
     try:
         return tomllib.loads("\n".join(toml_lines))
-    except Exception as e:
-        print(f"[marimo-sync] Error parsing TOML metadata: {e}", file=sys.stderr)
+    except tomllib.TOMLDecodeError as e:
+        label = f" in {source}" if source else ""
+        print(f"[marimo-sync] Error parsing TOML metadata{label}: {e}", file=sys.stderr)
         return {}
 
 
@@ -70,7 +102,7 @@ def format_marimo_config(pyproject_data: dict) -> str:
     return "\n".join(lines)
 
 
-def transform_md_content(md_content: str) -> str:
+def transform_md_content(md_content: str, source: str = "") -> str:
     """Transform raw marimo export md to jupyter-book-marimo MyST format."""
 
     # Parse YAML frontmatter (supports \r\n line endings)
@@ -84,7 +116,7 @@ def transform_md_content(md_content: str) -> str:
         body_text = frontmatter_match.group(2)
 
         # 1. Parse PEP 723 metadata into {marimo-config} block
-        pyproject_data = parse_pep723_script_metadata(yaml_text)
+        pyproject_data = parse_pep723_script_metadata(yaml_text, source=source)
         if pyproject_data:
             header_config_block = format_marimo_config(pyproject_data)
 
@@ -140,23 +172,30 @@ def convert_file(src_file: pathlib.Path) -> bool:
     if not raw_md:
         return False
 
-    processed_md = transform_md_content(raw_md)
+    processed_md = transform_md_content(raw_md, source=str(rel_path))
     dest_file.write_text(processed_md, encoding="utf-8")
-    print(f"[marimo-sync] Synced: notebooks/{rel_path} -> content/{dest_file.relative_to(CONTENT_DIR)}")
+    print(
+        f"[marimo-sync] Synced: notebooks/{rel_path.as_posix()} "
+        f"-> content/{dest_file.relative_to(CONTENT_DIR).as_posix()}"
+    )
     return True
 
 
-def sync_all():
+def sync_all() -> bool:
+    """Convert every notebook. Returns False if any conversion failed."""
     print("[marimo-sync] Building notebooks...")
-    for py_file in NOTEBOOKS_DIR.rglob("*.py"):
-        convert_file(py_file)
+    all_ok = True
+    for py_file in iter_notebooks():
+        if not convert_file(py_file):
+            all_ok = False
+    return all_ok
 
 
 def watch_and_serve(port: str, server_port: str):
     sync_all()
 
-    mtimes: Dict[pathlib.Path, float] = {}
-    for py_file in NOTEBOOKS_DIR.rglob("*.py"):
+    mtimes: dict[pathlib.Path, float] = {}
+    for py_file in iter_notebooks():
         mtimes[py_file] = py_file.stat().st_mtime
 
     jb_cmd = [
@@ -165,7 +204,14 @@ def watch_and_serve(port: str, server_port: str):
         "--server-port", server_port
     ]
     print("[marimo-sync] Launching Jupyter Book dev server...")
-    jb_proc = subprocess.Popen(jb_cmd, cwd=CONTENT_DIR)
+    try:
+        jb_proc = subprocess.Popen(jb_cmd, cwd=CONTENT_DIR)
+    except FileNotFoundError:
+        print(
+            "[marimo-sync] Could not launch Jupyter Book — is 'uv' installed and on PATH?",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     try:
         while True:
@@ -173,7 +219,17 @@ def watch_and_serve(port: str, server_port: str):
             if jb_proc.poll() is not None:
                 break
 
-            current_files = set(NOTEBOOKS_DIR.rglob("*.py"))
+            current_files = set(iter_notebooks())
+
+            # Handle deleted notebooks: remove their generated .md and stop tracking them
+            for stale_file in set(mtimes) - current_files:
+                del mtimes[stale_file]
+                rel_path = stale_file.relative_to(NOTEBOOKS_DIR)
+                dest_file = (CONTENT_DIR / rel_path).with_suffix(".md")
+                if dest_file.exists():
+                    dest_file.unlink()
+                    print(f"[marimo-sync] Removed: content/{dest_file.relative_to(CONTENT_DIR).as_posix()}")
+
             for py_file in current_files:
                 try:
                     current_mtime = py_file.stat().st_mtime
@@ -202,7 +258,8 @@ def main():
     if args.serve:
         watch_and_serve(args.port, args.server_port)
     else:
-        sync_all()
+        if not sync_all():
+            sys.exit(1)
 
 
 if __name__ == "__main__":
