@@ -23,21 +23,40 @@ def run_marimo_export(notebook_path: pathlib.Path) -> str:
 
 
 def parse_pep723_script_metadata(yaml_text: str) -> dict:
-    script_block_match = re.search(r"# /// script\n((?:#.*\n)+?)# ///", yaml_text)
-    if not script_block_match:
+    """Extract and parse PEP 723 inline script metadata from indented YAML frontmatter."""
+    # Normalize non-breaking spaces and line breaks
+    text = yaml_text.replace("\xa0", " ")
+
+    # Match `# /// script` ... `# ///` handling leading indentation and \r\n
+    pattern = r"^\s*#\s*///\s*script\s*[\r\n]+((?:[^\n]*\n)+?)\s*#\s*///"
+    match = re.search(pattern, text, re.MULTILINE)
+    if not match:
         return {}
-    comment_lines = script_block_match.group(1).splitlines()
-    toml_lines = [re.sub(r"^#\s?", "", line) for line in comment_lines]
+
+    script_block = match.group(1)
+    toml_lines = []
+    for line in script_block.splitlines():
+        # Remove leading indentation and comment character '#'
+        cleaned_line = re.sub(r"^\s*#\s?", "", line)
+        toml_lines.append(cleaned_line)
+
     try:
         return tomllib.loads("\n".join(toml_lines))
-    except Exception:
+    except Exception as e:
+        print(f"[marimo-sync] Error parsing TOML metadata: {e}", file=sys.stderr)
         return {}
 
 
 def format_marimo_config(pyproject_data: dict) -> str:
+    """Format parsed TOML dict into a {marimo-config} MyST block."""
     requires_python = pyproject_data.get("requires-python")
     dependencies = pyproject_data.get("dependencies", [])
-    filtered_deps = [dep for dep in dependencies if not dep.strip().startswith("marimo")]
+
+    # Filter out 'marimo' dependency as it's implied by jupyter-book-marimo
+    filtered_deps = [
+        dep for dep in dependencies
+        if not re.match(r"^marimo([<>=!~]|$)", dep.strip())
+    ]
 
     lines = ["```{marimo-config}", ":pyproject:"]
     if requires_python:
@@ -52,7 +71,11 @@ def format_marimo_config(pyproject_data: dict) -> str:
 
 
 def transform_md_content(md_content: str) -> str:
-    frontmatter_match = re.match(r"^---\n(.*?)\n---\n?(.*)", md_content, re.DOTALL)
+    """Transform raw marimo export md to jupyter-book-marimo MyST format."""
+
+    # Parse YAML frontmatter (supports \r\n line endings)
+    frontmatter_match = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n?(.*)", md_content, re.DOTALL)
+
     header_config_block = ""
     clean_frontmatter = ""
 
@@ -60,12 +83,15 @@ def transform_md_content(md_content: str) -> str:
         yaml_text = frontmatter_match.group(1)
         body_text = frontmatter_match.group(2)
 
+        # 1. Parse PEP 723 metadata into {marimo-config} block
         pyproject_data = parse_pep723_script_metadata(yaml_text)
         if pyproject_data:
             header_config_block = format_marimo_config(pyproject_data)
 
+        # 2. Strip marimo-version and multiline header from YAML frontmatter
         cleaned_yaml_lines = []
         in_header_block = False
+
         for line in yaml_text.splitlines():
             if line.startswith("marimo-version:"):
                 continue
@@ -73,24 +99,28 @@ def transform_md_content(md_content: str) -> str:
                 in_header_block = True
                 continue
             if in_header_block:
-                if line.startswith(" ") or line.startswith("\t") or not line.strip():
+                # Continue skipping lines if they are indented or empty
+                if re.match(r"^\s", line) or not line.strip():
                     continue
                 else:
                     in_header_block = False
+
             cleaned_yaml_lines.append(line)
 
         yaml_str = "\n".join(cleaned_yaml_lines).strip()
         if yaml_str:
-            clean_frontmatter = f"---\n{yaml_str}\n---\n"
+            clean_frontmatter = f"---\n{yaml_str}\n---"
     else:
         body_text = md_content
 
+    # 3. Transform code cell blocks: ```python {.marimo ...} -> ```{marimo} python
     transformed_body = re.sub(
         r"```python\s*\{\.marimo(?:\s+[^}]+)?\}",
         "```{marimo} python",
         body_text,
     )
 
+    # 4. Assemble output components in order
     sections = []
     if clean_frontmatter:
         sections.append(clean_frontmatter)

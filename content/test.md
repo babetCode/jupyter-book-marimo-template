@@ -3,6 +3,13 @@ title: Test
 width: medium
 ---
 
+```{marimo-config}
+:pyproject:
+    requires-python = ">=3.13"
+    dependencies = [
+        "numpy==2.5.2",
+    ]
+```
 
 ```{marimo} python
 import marimo as mo
