@@ -19,3 +19,6 @@ src/jupyter_book_marimo/assets/*
 !src/jupyter_book_marimo/assets/__init__.py
 
 *.log
+
+# marimo cache
+__marimo__/

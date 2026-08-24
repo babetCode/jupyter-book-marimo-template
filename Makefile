@@ -1,12 +1,15 @@
 export PYTHONUTF8 = 1
 
-.PHONY: book-build book-start clean
+.PHONY: sync-notebooks book-build book-start clean
 
-book-build:
+sync-notebooks:
+	uv run python scripts/sync_notebooks.py
+
+book-build: sync-notebooks
 	cd content && uv run jupyter-book build --html --strict
 
 book-start:
-	cd content && uv run jupyter-book start --port 3102 --server-port 4102
+	uv run python scripts/sync_notebooks.py --serve --port 3102 --server-port 4102
 
 clean:
 	rm -rf content/_build _build .jupyter-book-marimo .bin
