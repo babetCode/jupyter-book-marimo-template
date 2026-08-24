@@ -18,28 +18,34 @@ import numpy as np
 This is a markdown cell with $\LaTeX$.
 
 ```{marimo} python
+:name: foobar
 my_str = "hello"
 ```
 
 ```{marimo} python
+:hide-code: true
 mo.md(rf"""
 This is a markdown cell with f-string: {my_str}
 """)
 ```
 
 ```{marimo} python
+:name: my_function
 # reusable function
 def my_function(x):
     return x+x
 ```
 
 ```{marimo} python
-# jb: echo=true output=false
+:echo: true
+:output: false
 np.ones(10)
 ```
 
 ```{marimo} python
-# jb: echo=true output=false
+:name: my_other_function
+:echo: true
+:output: false
 def my_other_function(x):
     return x+x
 ```

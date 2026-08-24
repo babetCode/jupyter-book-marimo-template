@@ -25,6 +25,32 @@ CONTENT_DIR = PROJECT_ROOT / "content"
 # (e.g. marimo's own session/layout state).
 IGNORED_DIRS = {"__marimo__", "__pycache__"}
 
+# marimo @app.cell(...) kwargs that map directly onto jupyter-book-marimo
+# directive options of equivalent meaning — picked up automatically from
+# the `{.marimo ...}` attrs marimo already exports, no extra syntax needed.
+MARIMO_ATTR_TO_JB_OPTION = {
+    "hide_code": "hide-code",
+    "column": "column",
+    "name": "name",
+    "disabled": "disabled",
+}
+
+# jupyter-book-marimo options with no marimo-native equivalent. Set these
+# per-cell via a `# jb: key=value ...` comment anywhere in the cell.
+JB_ONLY_OPTIONS = {
+    "eval", "echo", "editor", "output",
+    "server-output", "error", "include",
+    "hide-output", "unparsable",
+}
+ALL_JB_OPTION_KEYS = JB_ONLY_OPTIONS | set(MARIMO_ATTR_TO_JB_OPTION.values())
+
+CELL_ATTR_PATTERN = re.compile(r'(\w+)=(?:"([^"]*)"|(\S+))')
+JB_COMMENT_PATTERN = re.compile(r"^[ \t]*#\s*jb:\s*(.+?)\s*$\n?", re.MULTILINE)
+CODE_FENCE_PATTERN = re.compile(
+    r"```python\s*\{\.marimo(?P<attrs>(?:\s+[^}]+)?)\}\n(?P<body>.*?\n)```",
+    re.DOTALL,
+)
+
 
 def iter_notebooks():
     """Yield all notebook .py files under NOTEBOOKS_DIR, skipping ignored dirs."""
@@ -102,6 +128,58 @@ def format_marimo_config(pyproject_data: dict) -> str:
     return "\n".join(lines)
 
 
+def parse_marimo_attrs(attrs_text: str) -> dict:
+    """Parse `key="value"` / `key=value` pairs from a `{.marimo ...}` fence."""
+    return {
+        key: (quoted if quoted is not None else bare)
+        for key, quoted, bare in CELL_ATTR_PATTERN.findall(attrs_text)
+    }
+
+
+def extract_jb_options(body: str) -> tuple[str, dict]:
+    """Pull a `# jb: key=value ...` config comment out of a cell body.
+
+    Returns (body_with_comment_removed, options_dict). Only the first such
+    comment is honored, and it can appear on any line in the cell.
+    """
+    match = JB_COMMENT_PATTERN.search(body)
+    if not match:
+        return body, {}
+
+    options = {}
+    for pair in match.group(1).split():
+        if "=" not in pair:
+            print(f"[marimo-sync] Warning: malformed jb option '{pair}', skipping", file=sys.stderr)
+            continue
+        key, value = pair.split("=", 1)
+        options[key] = value
+
+    unknown = set(options) - ALL_JB_OPTION_KEYS
+    if unknown:
+        print(f"[marimo-sync] Warning: unknown jb option(s): {', '.join(sorted(unknown))}", file=sys.stderr)
+
+    cleaned_body = JB_COMMENT_PATTERN.sub("", body, count=1)
+    return cleaned_body, options
+
+
+def build_marimo_cell(match: re.Match) -> str:
+    marimo_attrs = parse_marimo_attrs(match.group("attrs"))
+    body, jb_options = extract_jb_options(match.group("body"))
+
+    options = {}
+    for marimo_key, jb_key in MARIMO_ATTR_TO_JB_OPTION.items():
+        if marimo_key in marimo_attrs:
+            options[jb_key] = marimo_attrs[marimo_key]
+    options.update(jb_options)  # explicit `# jb:` comment wins on conflicts
+
+    lines = ["```{marimo} python"]
+    for key, value in options.items():
+        lines.append(f":{key}: {value}")
+    lines.append(body.rstrip("\n"))
+    lines.append("```")
+    return "\n".join(lines)
+
+
 def transform_md_content(md_content: str, source: str = "") -> str:
     """Transform raw marimo export md to jupyter-book-marimo MyST format."""
 
@@ -120,7 +198,7 @@ def transform_md_content(md_content: str, source: str = "") -> str:
         if pyproject_data:
             header_config_block = format_marimo_config(pyproject_data)
 
-        # 2. Strip marimo-version and multiline header from YAML frontmatter
+        # 2. Strip marimo-version, width, and multiline header from YAML frontmatter
         cleaned_yaml_lines = []
         in_header_block = False
 
@@ -145,12 +223,9 @@ def transform_md_content(md_content: str, source: str = "") -> str:
     else:
         body_text = md_content
 
-    # 3. Transform code cell blocks: ```python {.marimo ...} -> ```{marimo} python
-    transformed_body = re.sub(
-        r"```python\s*\{\.marimo(?:\s+[^}]+)?\}",
-        "```{marimo} python",
-        body_text,
-    )
+    # 3. Transform code cell blocks, mapping marimo cell attrs and any
+    #    `# jb:` comment onto MyST directive options
+    transformed_body = CODE_FENCE_PATTERN.sub(build_marimo_cell, body_text)
 
     # 4. Assemble output components in order
     sections = []
