@@ -1,5 +1,5 @@
 [project]
-name = "signal-filters-myst"
+name = "jupyter-book-marimo-template"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -7,4 +7,13 @@ requires-python = ">=3.13, <3.14"
 dependencies = [
     "jupyter-book>=2.1.6",
     "jupyter-book-marimo>=0.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "marimo>=0.9.0",
+    "matplotlib>=3.10.0",
+    "numpy>=2.1.0",
+    "pandas>=2.2.3",
+    "schemdraw[matplotlib,svgmath]==0.23",
 ]

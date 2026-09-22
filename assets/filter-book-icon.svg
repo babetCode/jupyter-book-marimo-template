@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 104.5" width="100" height="95">
+  <circle cx="55" cy="52.25" r="52.25" fill="#000000" />
+
+  <g transform="translate(14 0.25)">
+    <!-- Re-centered bar chart shifted left to align perfectly with the cup's opening -->
+    <!-- Bar 1 -->
+    <rect x="18" y="18" width="10" height="12" rx="1" fill="#ffffff" />
+    <!-- Bar 2 (Taller) -->
+    <rect x="30" y="7" width="10" height="23" rx="1" fill="#ffffff" />
+    <!-- Bar 3 -->
+    <rect x="42" y="12" width="10" height="18" rx="1" fill="#ffffff" />
+    <!-- Bar 4 (Shortest) -->
+    <rect x="54" y="21" width="10" height="9" rx="1" fill="#ffffff" />
+
+    <!-- Coffee Dripper Component -->
+    <!-- Handle on the right side -->
+    <path d="M 68,33 C 86,33 88,68 62,74" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+    
+    <!-- Outer Main Cone -->
+    <polygon points="11,30 69,30 54,85 26,85" fill="none" stroke="#ffffff" stroke-width="4.5" stroke-linejoin="miter" stroke-miterlimit="10"/>
+    
+    <!-- Base Stand Plate -->
+    <line x1="6" y1="85" x2="74" y2="85" stroke="#ffffff" stroke-width="4.5" stroke-linecap="round"/>
+    
+    <!-- Interior Vertical Ribs radiating down to the center base -->
+    <!-- Left Inner Rib -->
+    <line x1="22" y1="37" x2="31" y2="80" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Middle-Left Inner Rib -->
+    <line x1="32" y1="37" x2="36" y2="80" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Center Vertical Rib -->
+    <line x1="40" y1="37" x2="40" y2="80" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Middle-Right Inner Rib -->
+    <line x1="48" y1="37" x2="44" y2="80" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+    <!-- Right Inner Rib -->
+    <line x1="58" y1="37" x2="49" y2="80" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+</svg>
