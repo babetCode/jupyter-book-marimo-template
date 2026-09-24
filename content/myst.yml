@@ -3,11 +3,24 @@ project:
   title: Jupyter Book Marimo
   plugins:
     - type: executable
-      # path: ../.venv/Scripts/jupyter-book-marimo.exe # Windows
-      path: ../.venv/bin/jupyter-book-marimo # Unix
+      path: ../.venv/Scripts/jupyter-book-marimo.exe # Windows
+      # path: ../.venv/bin/jupyter-book-marimo # Unix
   toc:
     - file: index.md
     - file: test.md
 
 site:
   template: book-theme
+  nav:
+    - title: Test
+      url: https://example.com
+  actions:
+    - title: Test
+      url: https://example.com
+  parts:
+    banner: Updates will be released soon!
+  options:
+    favicon: ../assets/jbmarimo-template.png
+    logo: ../assets/jbmarimo-template.png
+    logo_dark: ../assets/jbmarimo-template.png
+    logo_text: Jupyter Book Marimo Template
