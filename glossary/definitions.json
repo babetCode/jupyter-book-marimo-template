@@ -1,7 +1,17 @@
 [
   {
+    "term": "Consciousness",
+    "lexical_category": "Noun",
+    "definition": "The existence of qualia."
+  },
+  {
+    "term": "Qualia",
+    "lexical_category": "Noun",
+    "definition": "An instance of first-person, subjective experience."
+  },
+  {
     "term": "Signal",
     "lexical_category": "Noun",
-    "definition": "A function that conveys information, typically representing how a quantity varies over time or space."
+    "definition": "A function that conveys information, typically representing how a quantity varies over time or space. "
   }
 ]

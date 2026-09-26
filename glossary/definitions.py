@@ -11,13 +11,21 @@ import marimo
 __generated_with = "0.25.0"
 app = marimo.App(width="medium")
 
-with app.setup(hide_code=True):
+
+@app.cell
+def _():
     import json
     import marimo as mo
     import pandas as pd
     from pathlib import Path
 
-    JSON_FILE = Path(__file__).resolve().parent.parent / "glossary/definitions.json"
+    return Path, json, mo
+
+
+@app.cell(hide_code=True)
+def _(Path, json, mo):
+    JSON_FILE = Path(__file__).resolve().parent / "definitions.json"
+    MD_FILE = Path(__file__).resolve().parent.parent / "content/glossary.md"
 
     if JSON_FILE.exists():
         initial_data = json.loads(JSON_FILE.read_text(encoding="utf-8"))
@@ -35,17 +43,51 @@ with app.setup(hide_code=True):
 
     get_rows, _set_rows = mo.state(initial_data)
 
+    if not MD_FILE.exists():
+        MD_FILE.parent.mkdir(parents=True, exist_ok=True)
+        MD_FILE.touch(exist_ok=True)
 
     # Create a single global helper that updates the state AND the file at the exact same time
+    # def save_data(new_list):
+    #     sorted_list = sorted(new_list, key=lambda x: x["term"].lower())
+    #     JSON_FILE.write_text(json.dumps(sorted_list, indent=2), encoding="utf-8")
+        # _set_rows(new_list
+
     def save_data(new_list):
         sorted_list = sorted(new_list, key=lambda x: x["term"].lower())
+    
         JSON_FILE.write_text(json.dumps(sorted_list, indent=2), encoding="utf-8")
-        _set_rows(new_list)
+    
+        md_body = "\n\n".join(
+            f'<u>**{r["term"]}**</u>  \n{r["definition"]}' 
+            for r in sorted_list
+        )
+        md_content = f"---\ntitle: Glossary\n---\n{md_body}\n"
+        MD_FILE.write_text(md_content, encoding="utf-8")
+    
+        _set_rows(sorted_list)
+
+    rows = get_rows()
+
+    mo.vstack([
+        mo.md(f'''
+            <u>**{r["term"]}**</u> *{r["lexical_category"]}*  
+            {r["definition"]}  
+        ''')
+        for r in rows
+    ])
+    return MD_FILE, get_rows, save_data
+
+
+@app.cell
+def _(MD_FILE):
+    MD_FILE
+    return
 
 
 @app.cell(hide_code=True)
-def _():
-    # jb: include=false
+def _(get_rows, mo, save_data):
+    # jb: eval=false
     form_fields = {
         "term": mo.ui.text(placeholder="Ex. Consciousness"),
         "lexical_category": mo.ui.dropdown(
@@ -91,19 +133,7 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
-    mo.vstack([
-        mo.md(f'''
-            <u>**{r["term"]}**</u> *{r["lexical_category"]}*  
-            {r["definition"]}  
-        ''')
-        for r in get_rows()
-    ])
-    return
-
-
-@app.cell(hide_code=True)
-def _():
+def _(get_rows, mo):
     mo.md(f"""
     ```md
     {
@@ -119,7 +149,8 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _():
+def _(get_rows, mo):
+    # jb: eval=false
     table = mo.ui.table(
         data=get_rows(),
         selection="single",
@@ -129,8 +160,8 @@ def _():
 
 
 @app.cell(hide_code=True)
-def _(table):
-    # jb: include=false
+def _(get_rows, mo, save_data, table):
+    # jb: eval=false
     edit_section = ""
     delete_button = ""
 
