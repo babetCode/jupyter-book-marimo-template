@@ -50,7 +50,7 @@ The options are:
 For template options, the python syntax is:
 
 ```py
-# jb: option=value
+# jb: option1=value1 option2=value2
 ```
 
 When the template processor converts the .py file to .md, this comment at the top of a cell will be converted to the corresponding syntax in the .md file. The other values can be directly changed in the marimo editor and therefore cannot be set with comments.
