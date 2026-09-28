@@ -24,7 +24,8 @@ graph LR
 The directive syntax in .md files is:
 ````
 ```{marimo} python
-:option: value
+:option1: value1
+:option2: value2
 # code
 ```
 ````
