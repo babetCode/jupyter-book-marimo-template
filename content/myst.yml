@@ -1,6 +1,9 @@
 version: 1
 project:
   title: JBMTemplate
+  authors:
+    - name: Adrien Babet
+  abstract: A processor to convert from marimo notebooks to MyST markdown files ready for rendering by Jupyter-Book-Marimo.
   plugins:
     - type: executable
       # path: ../.venv/Scripts/jupyter-book-marimo.exe # Windows
