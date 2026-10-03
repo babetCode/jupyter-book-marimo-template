@@ -1,11 +1,25 @@
 ---
 title: Glossary
+abbreviations:
+  iff: if and only if
+  diff: null
+numbering:
+  equations: false
 ---
-<u>**Consciousness**</u>  
-The existence of qualia.
 
-<u>**Qualia**</u>  
-An instance of first-person, subjective experience.
+:::{glossary}
+Consciousness
+: *Noun* — The existence of qualia.
 
-<u>**Signal**</u>  
-A function that conveys information, typically representing how a quantity varies over time or space. 
+Qualia
+: *Noun* — An instance of first-person, subjective experience.
+
+Signal
+: *Noun* — A function that conveys information, typically representing how a quantity varies over time or space.
+:::
+
+## Index
+
+```{show-index}
+
+```

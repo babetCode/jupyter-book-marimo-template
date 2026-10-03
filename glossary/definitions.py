@@ -1,29 +1,22 @@
-# /// script
-# requires-python = ">=3.14"
-# dependencies = [
-#     "marimo>=0.23.3",
-#     "pandas>=3.0.5",
-# ]
-# ///
-
 import marimo
 
 __generated_with = "0.25.0"
 app = marimo.App(width="medium")
 
 
-@app.cell
-def _():
+@app.cell(hide_code=True)
+def imports():
     import json
     import marimo as mo
     import pandas as pd
     from pathlib import Path
+    from textwrap import dedent
 
-    return Path, json, mo
+    return Path, dedent, json, mo
 
 
 @app.cell(hide_code=True)
-def _(Path, json, mo):
+def data(Path, dedent, json, mo):
     JSON_FILE = Path(__file__).resolve().parent / "definitions.json"
     MD_FILE = Path(__file__).resolve().parent.parent / "content/glossary.md"
 
@@ -47,46 +40,58 @@ def _(Path, json, mo):
         MD_FILE.parent.mkdir(parents=True, exist_ok=True)
         MD_FILE.touch(exist_ok=True)
 
-    # Create a single global helper that updates the state AND the file at the exact same time
-    # def save_data(new_list):
-    #     sorted_list = sorted(new_list, key=lambda x: x["term"].lower())
-    #     JSON_FILE.write_text(json.dumps(sorted_list, indent=2), encoding="utf-8")
-        # _set_rows(new_list
-
     def save_data(new_list):
         sorted_list = sorted(new_list, key=lambda x: x["term"].lower())
-    
+
         JSON_FILE.write_text(json.dumps(sorted_list, indent=2), encoding="utf-8")
-    
-        md_body = "\n\n".join(
-            f'<u>**{r["term"]}**</u>  \n{r["definition"]}' 
-            for r in sorted_list
-        )
-        md_content = f"---\ntitle: Glossary\n---\n{md_body}\n"
+
+        # Format terms and definitions using MyST colon definition list syntax
+        glossary_entries = []
+        for r in sorted_list:
+            term = r["term"].strip()
+            category = f"*{r['lexical_category']}* — " if r.get("lexical_category") else ""
+            definition = f"{category}{r['definition']}".strip()
+
+            # Handle multi-line definitions while keeping colon continuation aligned
+            indented_def = "\n  ".join(definition.splitlines())
+            glossary_entries.append(f"{term}\n: {indented_def}")
+
+        glossary_body = "\n\n".join(glossary_entries)
+
+        template = dedent("""\
+            ---
+            title: Glossary
+            abbreviations:
+              iff: if and only if
+              diff: null
+            numbering:
+              equations: false
+            ---
+
+            :::{{glossary}}
+            {glossary_body}
+            :::
+        """)
+
+        md_content = template.format(glossary_body=glossary_body)
+
         MD_FILE.write_text(md_content, encoding="utf-8")
-    
         _set_rows(sorted_list)
 
     rows = get_rows()
 
-    mo.vstack([
-        mo.md(f'''
-            <u>**{r["term"]}**</u> *{r["lexical_category"]}*  
-            {r["definition"]}  
-        ''')
-        for r in rows
-    ])
-    return MD_FILE, get_rows, save_data
-
-
-@app.cell
-def _(MD_FILE):
-    MD_FILE
-    return
+    # mo.vstack([
+    #     mo.md(f'''
+    #         <u>**{r["term"]}**</u> *{r["lexical_category"]}*  
+    #         {r["definition"]}  
+    #     ''')
+    #     for r in rows
+    # ])
+    return get_rows, save_data
 
 
 @app.cell(hide_code=True)
-def _(get_rows, mo, save_data):
+def add_form(get_rows, mo, save_data):
     # jb: eval=false
     form_fields = {
         "term": mo.ui.text(placeholder="Ex. Consciousness"),
@@ -133,23 +138,7 @@ def _(get_rows, mo, save_data):
 
 
 @app.cell(hide_code=True)
-def _(get_rows, mo):
-    mo.md(f"""
-    ```md
-    {
-        "\n\n".join(
-            [
-                f'<u>**{r["term"]}**</u>\n{r["definition"]}'
-                for r in get_rows()
-            ])
-    }
-    ```
-    """)
-    return
-
-
-@app.cell(hide_code=True)
-def _(get_rows, mo):
+def edit_table(get_rows, mo):
     # jb: eval=false
     table = mo.ui.table(
         data=get_rows(),
@@ -160,7 +149,7 @@ def _(get_rows, mo):
 
 
 @app.cell(hide_code=True)
-def _(get_rows, mo, save_data, table):
+def edit_form(get_rows, mo, save_data, table):
     # jb: eval=false
     edit_section = ""
     delete_button = ""
